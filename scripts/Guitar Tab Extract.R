@@ -6,6 +6,7 @@ library(ggplot2)
 library(stringr)
 library(tidyr)
 library(showtext)
+library(gganimate)
 
 # import font from Google
 font_add_google("Red Hat Mono", "Red Hat Mono")
@@ -45,6 +46,8 @@ hallelujah_tab <- str_match_all(hallelujah_text, "\\\n\\|\\s*(.*?)\\s*\\|\\\r")
 # combine with notes and octave data
 hallelujah_df <- data.frame(tabs = hallelujah_tab[[1]][1:nrow(hallelujah_tab[[1]])],
            notes = rep(c("E", "A", "D", "G", "B", "E"), nrow(hallelujah_tab[[1]]) / 6),
+           string = rep(c("1", "2", "3", "4", "5", "6"), nrow(hallelujah_tab[[1]]) / 6),
+           tab_row = (rep(c(seq(1:23)), each = 6)),
            octave_id = rep(c(2, 2, 3, 3, 3, 4), nrow(hallelujah_tab[[1]]) / 6))
 
 # separate out sections
@@ -60,15 +63,20 @@ outro <- hallelujah_df[121:138,] %>% mutate(section = "outro")
 whole_song <- rbind(intro, verse, chorus, verse, chorus, verse, chorus, verse, chorus, bridge, interlude, solo, outro)
 # extract individual notes and calculate actual note played
 whole_song_long <- whole_song %>% 
-  mutate(tabs = str_extract_all(whole_song$tabs,"\\(?[0-9,.]+\\)?")) %>% 
+  mutate(tab_raw = tabs,
+         tabs = str_extract_all(whole_song$tabs,"\\(?[0-9,.]+\\)?")) %>% 
   unnest(cols = tabs) %>%
+  group_by(tab_row, string) %>%
+  mutate(note_num = 1:n()) %>%
+  mutate(tab_pos = as.list(gregexpr("\\(?[0-9,.]+\\)?", tab_raw))[[1]][note_num]) %>%
   left_join(guitar_strings, by = c("notes", "octave_id")) %>%
-  mutate(tabs = as.numeric(tabs),
+  mutate(pos_id = (tab_row * 1000) + tab_pos,
+         tabs = as.numeric(tabs),
          id = id + tabs + capo) %>%
   select(-notes, -octave_id) %>%
   left_join(full_scale, by = "id")
 
-# plot notes
+# polar plot notes
 whole_song_long %>%
   group_by(notes, octave_id, section) %>%
   summarise(n = n()) %>%
@@ -90,3 +98,35 @@ whole_song_long %>%
 
 # save plot
 ggsave("hallelujah.png", width = 6, height = 8, dpi = 300)
+
+# add strings for zero values
+
+# animate strings
+a <- whole_song_long %>%
+  select(pos_id, string, tabs, tab_row, notes, section) %>%
+  mutate(tabs = as.numeric(gsub(0, NA, tabs))) %>%
+  ggplot(aes(x = string, y = tabs)) +
+  geom_point(aes(color = notes), size = 20, alpha = 0.65, shape = 1, stroke = 8) +
+  geom_col(aes(y = 12, fill = notes), width = 0.04, alpha = 0.65) +
+  transition_states(pos_id, transition_length = 2) +
+  shadow_wake(wake_length = 0.03) +
+  exit_fade() +
+  #scale_y_continuous(breaks = seq(1:max(whole_song_long$tabs)), limits = c(0, 12)) +
+  scale_y_reverse(breaks = seq(max(whole_song_long$tabs):1), limits = c(12, 0)) +
+  theme_minimal() +
+  labs(y = "FRET", x = "", color = "NOTE\n") +
+  guides(size = "none", fill = "none", color = guide_legend(title.position="top", title.hjust = 0.5)) +
+  theme(legend.position = "right",
+        text = element_text(family = "Red Hat Mono", size = 25),
+        axis.title.y = element_text(face = "bold", size = 20, color = "#a87986", hjust = 0.5),
+        plot.title = element_text(hjust = 0.5, size = 40),
+        panel.grid.major.x = element_line(size = 3),
+        panel.grid.minor.y = element_blank(),
+        legend.key.height = unit(100, "pt"),
+        plot.subtitle = element_text(hjust = 0.5, size = 30),
+        legend.text = element_text(size = 30),
+        legend.title = element_text(face = "bold", size = 20, color = "#a87986", hjust = 0.5))
+
+# save animation
+animate(a, height = 1800, width = 800, fps = 6, duration = 60)
+anim_save("outputs/hallelujah.gif")
