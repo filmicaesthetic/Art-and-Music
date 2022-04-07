@@ -5,8 +5,13 @@ library(tidytext)
 library(tidyr)
 library(data.table)
 library(ggplot2)
+library(forcats)
+library(ggstream)
+library(gridExtra)
+library(cowplot)
 
-the_raven <- read.csv("~/R/Art & Music/data/the_raven.csv")
+
+the_raven <- read.csv("~/R/Art & Music/data/the_raven.csv", quote="'")
 
 the_raven_tidy <- the_raven %>% mutate(line = trimws(gsub("â€.", '', line)))
 
@@ -33,9 +38,6 @@ raven_stats <- the_raven_tidy %>%
 # import NRC Word-Emotion Association Sentiment Lexicon
 nrc_all <- get_sentiments("nrc")
 
-# list of unique emotions
-sentiments <- unique(nrc_all$sentiment)
-
 # identify words that appear in the emotion lexicon
 raven_sent <- raven_split %>% 
   filter() %>%
@@ -58,7 +60,8 @@ raven_sent <- raven_split %>%
          disgust = disgust / total,
          total = joy + trust + surprise + anticipation + sadness + fear + anger + disgust) %>%
   select(-total)
- 
+
+# replace NAs with 0 
 raven_sent[is.na(raven_sent)] <- 0
 
 # reshape the data frame
@@ -118,8 +121,6 @@ emotion_sum <- raven_words %>% mutate(x = 1) %>% group_by(x) %>% summarise(joy =
   pivot_longer(-x, names_to = "emotion", values_to = "value") %>%
   arrange(-value)
 
-library(forcats)
-
 # create custom colour palette
 pal <- c("anticipation" = "#47bf6d", 
          "sadness" = "#5082a3", 
@@ -166,6 +167,8 @@ lines <- raven_words %>% ggplot(aes(x = line_id, y = chars)) +
         legend.position = "none",
         plot.margin=unit(c(0.1,0.1,0.1,-0.5), "cm"))
 
+#prepare line data for streamgraph
+
 raven_line <- data.frame(line_id = rep(seq(1:max(raven_byline$line_id)), 3),
                          emotion = rep(c("fear", "anticipation", "sadness"), each = max(raven_byline$line_id)))
 
@@ -189,9 +192,7 @@ stream <- raven_line %>%
         legend.position = "none",
         plot.margin=unit(c(0.1,0.1,0.1,-0.5), "cm"))
 
-library(gridExtra)
-library(grid)
-library(cowplot)
+# arrange plots
 
 g <- grid.arrange(lines, stream, nrow = 1, widths = c(2, 1))
 
