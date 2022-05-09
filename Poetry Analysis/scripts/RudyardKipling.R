@@ -99,6 +99,7 @@ poem_byword <- poem_long %>%
 
 # additional stats
 poem_words <- poem_byword %>% 
+  arrange(line_id, word_id) %>%
   mutate(word_no_punc = gsub('[^A-Za-z0-9 ]', "", trimws(word)),
          chars = nchar(word),
          words = nchar(gsub('[^ ]', "", word_no_punc)) + 1,
@@ -155,15 +156,18 @@ emotion_sum %>% mutate(emotion = fct_reorder(emotion, -value)) %>%
 
 ggsave("poem_emotion_totals.png")
 
+poem_words %>% arrange(word_id)
+
 # poem chart
-lines <- poem_words %>% ggplot(aes(x = line_id, y = chars)) +
-  geom_col(aes(), fill = block_col, color = bg_col) +
-  geom_col(data = poem_words %>% mutate(anticipation = ifelse(is.na(anticipation) == TRUE, 0, anticipation)), aes(alpha = anticipation), fill = anticipation_col, color = bg_col) +
-  geom_col(data = poem_words %>% mutate(trust = ifelse(is.na(trust) == TRUE, 0, trust)), aes(alpha = trust), fill = trust_col, color = bg_col) +
-  geom_col(data = poem_words %>% mutate(anger = ifelse(is.na(anger) == TRUE, 0, anger)), aes(alpha = anger), fill = anger_col, color = bg_col) +
-  geom_point(data = poem_words %>% filter(anger > 0.2), aes(y = char_sum - (chars / 2), size = anger, alpha = anger), shape = 0, stroke = 1.5, color = anger_col) +
-  geom_point(data = poem_words %>% filter(trust > 0.2), aes(y = char_sum - (chars / 2), size = trust, alpha = trust), shape = 0, stroke = 1.5, color = trust_col) +  
-  geom_point(data = poem_words %>% filter(anticipation > 0.2), aes(y = char_sum - (chars / 2), size = anticipation, alpha = anticipation), shape = 0, stroke = 1.5, color = anticipation_col) +
+lines <- poem_words %>%
+  ggplot(aes(x = line_id, y = chars)) +
+  geom_col(data = poem_words %>% arrange(line_id, word_id), fill = block_col, color = bg_col) +
+  geom_col(data = poem_words %>% arrange(line_id, word_id) %>% mutate(anticipation = ifelse(is.na(anticipation) == TRUE, 0, anticipation)), aes(alpha = anticipation), fill = anticipation_col, color = bg_col) +
+  geom_col(data = poem_words %>% arrange(line_id, word_id) %>% mutate(trust = ifelse(is.na(trust) == TRUE, 0, trust)), aes(alpha = trust), fill = trust_col, color = bg_col) +
+  geom_col(data = poem_words %>% arrange(line_id, word_id) %>% mutate(anger = ifelse(is.na(anger) == TRUE, 0, anger)), aes(alpha = anger), fill = anger_col, color = bg_col) +
+  geom_point(data = poem_words %>% arrange(line_id, word_id) %>% filter(anger > 0.2), aes(y = char_sum - (chars / 2), size = anger, alpha = anger), shape = 0, stroke = 1.5, color = anger_col) +
+  geom_point(data = poem_words %>% arrange(line_id, word_id) %>% filter(trust > 0.2), aes(y = char_sum - (chars / 2), size = trust, alpha = trust), shape = 0, stroke = 1.5, color = trust_col) +  
+  geom_point(data = poem_words %>% arrange(line_id, word_id) %>% filter(anticipation > 0.2), aes(y = char_sum - (chars / 2), size = anticipation, alpha = anticipation), shape = 0, stroke = 1.5, color = anticipation_col) +
   geom_smooth(data = poem_words %>% arrange(line_id, word_id) %>% filter(anticipation > 0.15), aes(y = char_sum - (chars / 2), size = anticipation / 2), color = anticipation_col, se = FALSE, method = "lm", formula = y ~ poly(x, 4)) +
   geom_smooth(data = poem_words %>% arrange(line_id, word_id) %>% filter(trust > 0.15), aes(y = char_sum - (chars / 2), size = trust / 2), color = trust_col, se = FALSE, method = "lm", formula = y ~ poly(x, 5)) +
   geom_smooth(data = poem_words %>% arrange(line_id, word_id) %>% filter(anger > 0.15), aes(y = char_sum - (chars / 2), size = anger / 2), color = anger_col, se = FALSE, method = "lm", formula = y ~ poly(x, 5)) +
@@ -181,8 +185,6 @@ lines <- poem_words %>% ggplot(aes(x = line_id, y = chars)) +
         plot.margin=unit(c(0.1,0.1,0.1,-0.5), "cm")
         )
 
-
-lines
 #prepare line data for streamgraph
 
 poem_line <- data.frame(line_id = rep(seq(1:max(poem_byline$line_id)), 3),
@@ -213,7 +215,6 @@ stream <- poem_line %>%
 g <- grid.arrange(lines, stream, nrow = 1, widths = c(2, 1))
 
 ggsave("Poetry Analysis/outputs/if.png", g,  width = 5, height = 7, dpi = 300)
-
 
 # punctuation stats
 

@@ -97,6 +97,7 @@ raven_byword <- raven_long %>%
 
 # additional stats
 raven_words <- raven_byword %>% 
+  arrange(line_id, word_id) %>%
   mutate(word_no_punc = gsub('[^A-Za-z0-9 ]', "", trimws(word)),
          chars = nchar(word),
          words = nchar(gsub('[^ ]', "", word_no_punc)) + 1,
