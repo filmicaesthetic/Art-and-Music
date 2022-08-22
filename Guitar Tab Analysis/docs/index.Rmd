@@ -1,0 +1,171 @@
+---
+title: "Hallelujah by Jeff Buckley"
+output:
+  flexdashboard::flex_dashboard:
+    orientation: columns
+    vertical_layout: fill
+    social: menu
+    source_code: embed
+    theme:
+      version: 4
+      bootswatch: sandstone
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+
+library(flexdashboard)
+library(plotly)
+library(rvest)
+library(dplyr)
+library(ggplot2)
+library(stringr)
+library(tidyr)
+library(showtext)
+library(gganimate)
+library(forcats)
+library(DT)
+
+# function for scraping text from webpage
+scrape_data <- function (x) {
+  y <- read_html(x) %>%
+    html_text()
+  return(y)
+}
+
+# url of tab
+tab_url <- "https://www.guitartabs.cc/tabs/j/jeff_buckley/hallelujah_tab_ver_7.html"
+
+capo_from_url <- function(tab_url) {
+  # scrape data from guitartabs.cc
+  song_html <- scrape_data(tab_url)
+  
+  # extract tab section
+  song_text <- sub('\\\tComments.*', "", sub('.*Artist:', "", song_html))
+  # extract capo
+  capo_text <- str_match_all(song_text, "Capo:*(.*?)\\s*\\\r")
+  capo <- as.numeric(str_extract(capo_text,"\\(?[0-9,.]+\\)?"))
+  
+  return(capo)
+}
+
+songdf_from_url <- function(tab_url) {
+  # scrape data from guitartabs.cc
+  song <- scrape_data(tab_url)
+  
+  # extract tab section
+  song_text <- sub('\\\tComments.*', "", sub('.*Artist:', "", song))
+  
+  # extract individual strings
+  song_tab <- str_match_all(song_text, "\\\n\\|\\s*(.*?)\\s*\\|\\\r")
+  
+  #count of tab rows
+  tab_count <- nrow(song_tab[[1]]) / 6
+  # combine with notes and octave data
+  song_df <- data.frame(tabs = song_tab[[1]][1:nrow(song_tab[[1]])],
+                              notes = rep(c("E", "A", "D", "G", "B", "E"), tab_count),
+                              string = rep(c("1", "2", "3", "4", "5", "6"), tab_count),
+                              tab_row = (rep(c(seq(1:tab_count)), each = 6)),
+                              octave_id = rep(c(2, 2, 3, 3, 3, 4), tab_count))
+  
+  # extract individual notes and calculate actual note played
+  song_long <- song_df %>% 
+    mutate(tab_raw = tabs,
+           tabs = str_extract_all(song_df$tabs,"\\(?[0-9,.]+\\)?")) %>% 
+    unnest(cols = tabs) %>%
+    group_by(tab_row, string) %>%
+    mutate(note_num = 1:n()) %>%
+    mutate(tab_pos = as.list(gregexpr("\\(?[0-9,.]+\\)?", tab_raw))[[1]][note_num]) %>%
+    left_join(guitar_strings, by = c("notes", "octave_id")) %>%
+    mutate(pos_id = (tab_row * 1000) + tab_pos,
+           tabs = as.numeric(tabs),
+           id = id + tabs + capo) %>%
+    select(-notes, -octave_id) %>%
+    left_join(full_scale, by = "id")
+  
+  return(song_long)
+}
+
+# octave of notes
+notes <- data.frame(notes = c("C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"))
+
+# full potential range of guitar
+full_scale <- data.frame(id = seq(1:(nrow(notes) * 6)),
+                         notes = c(rep(notes$notes, 6)),
+                         octave_id = c(rep(seq(1:6), each = nrow(notes)))
+                         )
+
+# standard tuning strings
+guitar_strings <- data.frame(notes = c("E", "A", "D", "G", "B", "E"),
+                             octave_id = c(2, 2, 3, 3, 3, 4)) %>% 
+  left_join(full_scale, by = c("notes", "octave_id"))
+
+bgcolor <- "#e6dacf"
+fgcolor <- "#192530"
+palette <- c("A" = "#90486c", 
+             "A#" = "#6c3b4d", 
+             "B" = "#d9b239", 
+             "C" = "#ca7e6c", 
+             "C#" = "#a74a4a", 
+             "D" = "#d17826", 
+             "D#" = "#a35712", 
+             "E" = "#3d667e", 
+             "F" = "#53a578", 
+             "F#" = "#3b6c58", 
+             "G" = "#e06846", 
+             "G#" = "#c14333")
+
+tab_url <- "https://www.guitartabs.cc/tabs/j/jeff_buckley/hallelujah_tab_ver_7.html"
+capo <- capo_from_url(tab_url)
+song_df <- songdf_from_url(tab_url)
+
+```
+
+Sidebar {.sidebar}
+--------------------------------------------------------------------------------
+
+```{r}
+valueBox(nrow(song_df))
+```
+
+
+Column {data-width=650}
+--------------------------------------------------------------------------------
+
+```{r}
+a <- song_df %>%
+  mutate(string = factor(string, levels = c("6", "5", "4", "3", "2", "1"))) %>%
+  select(pos_id, string, tabs, tab_row, notes) %>%
+  mutate(tabs = as.numeric(gsub(0, NA, tabs))) %>%
+  ggplot(aes(x = string, y = tabs)) +
+  geom_point(aes(color = notes), size = 20, alpha = 0.65, shape = 1, stroke = 8) +
+  geom_col(aes(y = 12, fill = notes), width = 0.06, alpha = 0.65) +
+  transition_states(pos_id, transition_length = 2) +
+  shadow_wake(wake_length = 0.03) +
+  exit_fade() +
+  #scale_y_continuous(breaks = seq(1:max(whole_song_long$tabs)), limits = c(0, 12)) +
+  scale_y_reverse(breaks = seq(max(song_df$tabs):1), limits = c(12, 0)) +
+  scale_color_manual(values = palette) +
+  scale_fill_manual(values = palette) +
+  theme_minimal() +
+  labs(y = "FRET", x = "", color = "NOTE\n") +
+  guides(size = "none", fill = "none", color = guide_legend(title.position="top", title.hjust = 0.5)) +
+  theme(legend.position = "right",
+        text = element_text(family = "Red Hat Mono", size = 25, color = fgcolor),
+        plot.background = element_rect(color = bgcolor, fill = bgcolor),
+        panel.background = element_rect(color = bgcolor, fill = bgcolor),
+        axis.title.y = element_text(face = "bold", size = 20, color = "#6c3b4d", hjust = 0.5),
+        plot.title = element_text(hjust = 0.5, size = 40),
+        panel.grid.major.x = element_line(size = 4.5, color = "#f5f1ed"),
+        panel.grid.major.y = element_line(size = 1.5, color = "#8a6d51"),
+        panel.grid.minor.y = element_blank(),
+        legend.key.height = unit(100, "pt"),
+        plot.subtitle = element_text(hjust = 0.5, size = 30),
+        legend.text = element_text(size = 30),
+        legend.title = element_text(face = "bold", size = 20, color = "#6c3b4d", hjust = 0.5))
+
+# save animation
+animate(a, height = 1800, width = 800, fps = 6, duration = 60)
+```
+
+

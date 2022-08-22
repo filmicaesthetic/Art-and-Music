@@ -1,0 +1,46 @@
+.loading_page {
+  margin: auto;
+  width: 50%;
+  text-align: center;
+  padding: 100px 0;
+}
+
+.sidebar form.well {
+  background-color:  #2d2d2e;
+  border: 1px solid #4b6159;
+  text-align: center;
+  color: #dff0ea;
+}
+
+.sidebar form.well .warning {
+  background-color: #d5950e;
+  font-size: 9pt;
+  padding: 10px;
+  padding-bottom: 20px;
+  border-radius: 10px;
+  color: #470b10;
+}
+
+.sidebar form.well .warning h4 {
+  color: #470b10;
+  font-weight: bold;
+}
+
+a {
+  color: #470b10;
+  text-decoration: underline;
+}
+
+img {
+  margin-bottom: 20px;
+}
+
+plot .plotly div {
+  font-family: "Poppins";
+  font-size: 30pt;
+}
+
+.main-content {
+  font-size: 20pt;
+  font-weight: bold;
+}
