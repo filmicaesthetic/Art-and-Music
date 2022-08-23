@@ -18,6 +18,7 @@ library(bslib)
 library(showtext)
 library(sysfonts)
 library(showtextdb)
+library(shinyBS)
 
 # import google font
 font_add_google("Open Sans", "Open Sans")
@@ -388,7 +389,20 @@ ui <- fluidPage(
                                   sidebarPanel(width = 4,
                                                textAreaInput('poem_text', label = NULL, placeholder = "Paste the text from a poem here.", rows = 10),
                                                textInput('plot_title', label = NULL, placeholder = "Add a plot title (optional)"),
-                                               submitButton(text = "Analyse Text")
+                                               submitButton(text = "Analyse Text"),
+                                               br(),
+                                               bsCollapse(id = "collapseExample",
+                                                          bsCollapsePanel("ABOUT LEXICON", "The NRC Word-Emotion Association Lexicon provides a list of English words and their associations with a range of eight emotions. Language contained within the provided text is analysed and given an emotion score based on the word's association with one or more emotion. The top three highest scoring words are highlighted in the visualisation, which attempts to show their usage within the structure of the text the text.",
+                                                                          br(), br(), a("Learn more about the NRC Emotion Lexicon", href = "https://saifmohammad.com/WebPages/NRC-Emotion-Lexicon.htm"), style = "info"),
+                                                          bsCollapsePanel("HOW TO READ", img(src="bars_legend.png", width = '100%'),
+                                                                          p("Each bar in the chart represents a word, or punctuation mark in the text. The length of the bar represents how many characters are in the word. Grey bars represent words that are not associated with the three top emotions. Coloured bars represent words that are associated with one or more of the highlighted emotions."),
+                                                                          br(),
+                                                                          img(src="stream_legend.png", width = '100%'),
+                                                                          p("The streamgraph offers a way to visualise the flow of emotions throughout the text, with each score aggregated by line. The helps to identify highly emotive sections of the text, as well as patterns within the selected emotions."), style = "success")),
+                                               br(),
+                                               div(id = "icons", style = "text-align:center;",
+                                               a(img(src="twitter-icon.png", width = "25px"), href = "https://www.twitter.com/filmicaesthetic"),
+                                               a(img(src="github-icon.png", width = "25px"), href = "https://www.github.com/filmicaesthetic"))
                                   ),
                                   mainPanel(width = 8,
                                             plotOutput('poem_plot', width = "100%")
