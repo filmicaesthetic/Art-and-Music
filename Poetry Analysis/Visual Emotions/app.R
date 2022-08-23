@@ -19,6 +19,7 @@ library(showtext)
 library(sysfonts)
 library(showtextdb)
 library(shinyBS)
+library(curl)
 
 # import google font
 font_add_google("Open Sans", "Open Sans")
@@ -76,7 +77,7 @@ poem_split <- function(poem_raw) {
 
 poem_long <- function(poem_split) {
   # import NRC Word-Emotion Association Sentiment Lexicon
-  nrc_all <- get_sentiments("nrc")
+  nrc_all <- read.csv("www/nrc.csv")
   
   # identify words that appear in the emotion lexicon
   poem_sent <- poem_split %>% 
