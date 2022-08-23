@@ -26,12 +26,12 @@ showtext_auto()
 # colours
 main_pal <- c("joy" = "#e9a53a",
               "trust" = "#071e2f",
-              "surprise" = "#071e2f",
+              "surprise" = "#f09e9e",
               "anticipation" = "#c77849",
               "sadness" = "#467495",
               "fear" = "#60376b",
               "anger" = "#520a18",
-              "disgust" = "#63e07e")
+              "disgust" = "#71de8b")
 
 
 bg_col <- "#f7f7f5"
@@ -42,17 +42,11 @@ poem_split <- function(poem_raw) {
   poem_raw_df <- data.frame(poem_text = c(poem_raw))
   
   poem_line <- poem_raw_df %>%
-    #rename(line = poem_text) %>% 
-    #unnest_sentences(sent, poem_text) %>%
-    #unnest(line, names_sep = "\\\n") %>%
     unnest_lines(line, "poem_text") %>%
     mutate(line_id = row_number())
   
   poem_sent <- poem_raw_df %>%
-    #rename(line = poem_text) %>% 
     unnest_sentences(line, poem_text) %>%
-    #unnest(line, names_sep = "\\\n") %>%
-    #unnest_lines(line, "poem_text") %>%
     mutate(line_id = row_number())
   
   if (nrow(poem_sent) > nrow(poem_line)) {
@@ -61,7 +55,6 @@ poem_split <- function(poem_raw) {
     poem <- poem_line
   }
 
-  
   # remove incorrectly formatted characters
   poem_tidy <- poem %>% mutate(line = gsub("â€.", '', line))
   
@@ -124,7 +117,7 @@ poem_words <- function(poem_long) {
     summarise(value = sum(value)) %>% 
     filter() %>% 
     group_by(word) %>% 
-    mutate(test = value / sum(value)) %>%
+    mutate(test = value) %>%
     select(-line, -value) %>%
     pivot_wider(id_cols= c(line_id, word, word_id), names_from = emotion, values_from = test) 
   
@@ -173,7 +166,7 @@ poem_byline <- function(poem_long) {
     summarise(value = sum(value)) %>% 
     filter(value > 0) %>% 
     group_by(line_id) %>% 
-    mutate(test = value / sum(value)) %>%
+    mutate(test = value) %>%
     select(-line)
   
   return(poem_byline)
@@ -182,18 +175,20 @@ poem_byline <- function(poem_long) {
 
 plot_lines <- function(poem_words) {
   
-  
   # identify highest scoring emotions
-  emotion_sum <- poem_words %>% mutate(x = 1) %>% group_by(x) %>% summarise(joy = sum(joy, na.rm = TRUE),
-                                                                            trust = sum(trust, na.rm = TRUE),
-                                                                            surprise = sum(surprise, na.rm = TRUE),
-                                                                            anticipation = sum(anticipation, na.rm = TRUE),
-                                                                            sadness = sum(sadness, na.rm = TRUE),
-                                                                            fear = sum(fear, na.rm = TRUE),
-                                                                            anger = sum(anger, na.rm = TRUE),
-                                                                            disgust = sum(disgust, na.rm = TRUE)) %>%
+  emotion_sum <- poem_words %>% 
+    mutate(x = 1) %>% 
+    group_by(x) %>% 
+    summarise(joy = sum(joy, na.rm = TRUE),
+              trust = sum(trust, na.rm = TRUE),
+              surprise = sum(surprise, na.rm = TRUE),
+              anticipation = sum(anticipation, na.rm = TRUE),
+              sadness = sum(sadness, na.rm = TRUE),
+              fear = sum(fear, na.rm = TRUE),
+              anger = sum(anger, na.rm = TRUE),
+              disgust = sum(disgust, na.rm = TRUE)) %>%
     pivot_longer(-x, names_to = "emotion", values_to = "value") %>%
-    arrange(-value) %>%
+    arrange(-value, emotion) %>%
     head(3)
   
   # create palette from top 3 emotions
@@ -236,16 +231,19 @@ plot_lines <- function(poem_words) {
 plot_stream <- function(poem_byline, poem_words) {
   
   # identify highest scoring emotions
-  emotion_sum <- poem_words %>% mutate(x = 1) %>% group_by(x) %>% summarise(joy = sum(joy, na.rm = TRUE),
-                                                                            trust = sum(trust, na.rm = TRUE),
-                                                                            surprise = sum(surprise, na.rm = TRUE),
-                                                                            anticipation = sum(anticipation, na.rm = TRUE),
-                                                                            sadness = sum(sadness, na.rm = TRUE),
-                                                                            fear = sum(fear, na.rm = TRUE),
-                                                                            anger = sum(anger, na.rm = TRUE),
-                                                                            disgust = sum(disgust, na.rm = TRUE)) %>%
+  emotion_sum <- poem_words %>% 
+    mutate(x = 1) %>% 
+    group_by(x) %>% 
+    summarise(joy = sum(joy, na.rm = TRUE),
+              trust = sum(trust, na.rm = TRUE),
+              surprise = sum(surprise, na.rm = TRUE),
+              anticipation = sum(anticipation, na.rm = TRUE),
+              sadness = sum(sadness, na.rm = TRUE),
+              fear = sum(fear, na.rm = TRUE),
+              anger = sum(anger, na.rm = TRUE),
+              disgust = sum(disgust, na.rm = TRUE)) %>%
     pivot_longer(-x, names_to = "emotion", values_to = "value") %>%
-    arrange(-value) %>%
+    arrange(-value, emotion) %>%
     head(3)
   
   # create palette from top 3 emotions
@@ -263,7 +261,10 @@ plot_stream <- function(poem_byline, poem_words) {
   poem_line <- data.frame(line_id = rep(seq(1:max(poem_byline$line_id)), 3),
                           emotion = rep(c(as.character(emo_1), as.character(emo_2), as.character(emo_3)), each = max(poem_byline$line_id)))
   
-  poem_line <- poem_line %>% left_join(poem_byline, by = c("line_id", "emotion")) %>% group_by(line_id, emotion) %>% summarise(value = sum(test))
+  poem_line <- poem_line %>% 
+    left_join(poem_byline, by = c("line_id", "emotion")) %>% 
+    group_by(line_id, emotion) %>% 
+    summarise(value = sum(test))
   
   poem_line[is.na(poem_line)] <- 0
   
@@ -300,39 +301,46 @@ plot_stream <- function(poem_byline, poem_words) {
 
 plot_legend <- function(poem_words, plot_title) {
   # identify highest scoring emotions
-  emotion_sum <- poem_words %>% mutate(x = 1) %>% group_by(x) %>% summarise(joy = sum(joy, na.rm = TRUE),
-                                                                            trust = sum(trust, na.rm = TRUE),
-                                                                            surprise = sum(surprise, na.rm = TRUE),
-                                                                            anticipation = sum(anticipation, na.rm = TRUE),
-                                                                            sadness = sum(sadness, na.rm = TRUE),
-                                                                            fear = sum(fear, na.rm = TRUE),
-                                                                            anger = sum(anger, na.rm = TRUE),
-                                                                            disgust = sum(disgust, na.rm = TRUE)) %>%
+  emotion_sum <- poem_words %>% 
+    mutate(x = 1) %>% 
+    group_by(x) %>% 
+    summarise(joy = sum(joy, na.rm = TRUE),
+              trust = sum(trust, na.rm = TRUE),
+              surprise = sum(surprise, na.rm = TRUE),
+              anticipation = sum(anticipation, na.rm = TRUE),
+              sadness = sum(sadness, na.rm = TRUE),
+              fear = sum(fear, na.rm = TRUE),
+              anger = sum(anger, na.rm = TRUE),
+              disgust = sum(disgust, na.rm = TRUE)) %>%
     pivot_longer(-x, names_to = "emotion", values_to = "value") %>%
-    arrange(-value)
+    arrange(-value, emotion)
   
   filt <- emotion_sum %>% head(3)
   
   emotion_sum <- emotion_sum %>%
-    mutate(label = ifelse(emotion %in% filt$emotion, paste0(emotion), NA))
+    mutate(label = ifelse(emotion %in% filt$emotion, paste0(emotion), NA)) %>%
+    mutate(emotion = as.factor(emotion))
   
   # create palette from top 3 emotions
   pal <- main_pal[filt$emotion]
   
   # emotion bar chart
-  leg <- emotion_sum %>% mutate(emotion = fct_reorder(emotion, value)) %>% 
+  leg <- data.frame(emotion_sum) %>% 
+    mutate(emotion = fct_reorder(emotion, value, sum)) %>% 
     ggplot(aes(x = 1, y = value)) +
     geom_col(aes(fill = emotion), color = bg_col, position = position_stack()) +
-    geom_text(aes(label = label), position = position_stack(vjust = 0.9), hjust = 1, fontface="bold", color = "white", family = "Open Sans") +
+    geom_text(aes(label = label, group = emotion), position = position_stack(vjust = 0.9), hjust = 1, fontface="bold", color = "white", family = "Open Sans") +
     theme_minimal() +
     coord_flip() +
-    ggtitle(paste(str_wrap(plot_title, 50))) +
+    ggtitle(paste(str_wrap(plot_title, 40))) +
     scale_fill_manual(values = pal, na.value = block_col) +
+    labs(caption = "Visualisation: @filmicaesthetic | NRC Word-Emotion Lexicon: www.saifmohammad.com") +
     theme(axis.title = element_blank(),
           axis.text = element_blank(),
           panel.grid = element_blank(),
           plot.title = element_text(size = 16, hjust = 0.5, family = "Open Sans", face = "bold", margin = margin(t = 20, b = 20, unit = "pt")),
           panel.background = element_rect(color = bg_col, fill = bg_col),
+          plot.caption = element_text(family = "Open Sans", size = 6, hjust = 0.5, color = "#333333"),
           plot.background = element_rect(colour = bg_col, fill = bg_col),
           legend.position = "none")
   
@@ -348,15 +356,6 @@ plot_combine <- function(lines, stream) {
   return(g)
   
 }
-
-# poem_split <- poem_split(poem_raw = poem_raw)
-# poem_long <- poem_long(poem_split)
-# poem_words <- poem_words(poem_long)
-# poem_byline <- poem_byline(poem_long)
-# stream <- plot_stream(poem_byline, poem_words)
-# lines <- plot_lines(poem_words)
-# 
-# plot_combine(lines, stream)
 
 jscode <-
   '$(document).on("shiny:connected", function(e) {
@@ -380,22 +379,18 @@ ui <- fluidPage(
     tags$link(rel = "stylesheet", type = "text/css", href = "emotions.css")
   ),
   
-  # App title
-  #titlePanel("NRC Emotion Analysis"),
-  
   # Main panel for displaying outputs ----
   fluidPage(width = 12,
             theme = bs_theme(version = 4, bootswatch = "lux"),
-            navbarPage(title = "Poetry Emotion Analysis",
+            navbarPage(title = "Visual Emotions",
                        
                                 sidebarLayout(
                                   sidebarPanel(width = 4,
                                                textAreaInput('poem_text', label = NULL, placeholder = "Paste the text from a poem here.", rows = 10),
                                                textInput('plot_title', label = NULL, placeholder = "Add a plot title (optional)"),
-                                               submitButton(text = "Analyse Poem")
+                                               submitButton(text = "Analyse Text")
                                   ),
                                   mainPanel(width = 8,
-                                            #plotOutput('legend', width = "100%", height = "100px"),
                                             plotOutput('poem_plot', width = "100%")
                                   )
                                 )
@@ -408,8 +403,6 @@ ui <- fluidPage(
 
 # Define server
 server <- function(input, output, session) {
-  
-  #output$poem_raw_df <- renderPrint({ poem_split(input$poem_text) })
   
   emotion_sum <- reactive ({ if(is.null(input$poem_text) == FALSE) {
     poem_split <- poem_split(poem_raw_df())
@@ -436,40 +429,6 @@ server <- function(input, output, session) {
     return(height)
     } })
   
-  # legendPlot <- renderPlot({
-  #   
-  #   emotion_sum <- emotion_sum()
-  #   
-  #   filt <- emotion_sum %>% head(3)
-  #   
-  #   emotion_sum <- emotion_sum %>%
-  #     mutate(label = ifelse(emotion %in% filt$emotion, paste0(emotion), NA))
-  #   
-  #   plot_title <- plotTitle()
-  #   
-  #   # create palette from top 3 emotions
-  #   pal <- main_pal[filt$emotion]
-  #   
-  #   # emotion bar chart
-  #   leg <- emotion_sum %>% mutate(emotion = fct_reorder(emotion, value)) %>% 
-  #     ggplot(aes(x = 1, y = value)) +
-  #     geom_col(aes(fill = emotion), color = bg_col, position = position_stack()) +
-  #     geom_text(aes(label = label), position = position_stack(vjust = 0.9), hjust = 1, fontface="bold", color = "white", family = "Open Sans") +
-  #     theme_minimal() +
-  #     coord_flip() +
-  #     ggtitle(paste(plot_title)) +
-  #     scale_fill_manual(values = pal, na.value = block_col) +
-  #     theme(axis.title = element_blank(),
-  #           axis.text = element_blank(),
-  #           panel.grid = element_blank(),
-  #           plot.title = element_text(size = 16, hjust = 0.5, family = "Open Sans", face = "bold", margin = margin(t = 20, b = 20, unit = "pt")),
-  #           panel.background = element_rect(color = bg_col, fill = bg_col),
-  #           plot.background = element_rect(colour = bg_col, fill = bg_col),
-  #           legend.position = "none")
-  #   
-  #   return(leg)
-  # })
-  
   output$poem_plot <- renderPlot({
     if (is.null(poem_raw_df) == FALSE) {
     poem_split <- poem_split(poem_raw_df())
@@ -482,10 +441,15 @@ server <- function(input, output, session) {
     g <- plot_combine(lines, stream)
     ptitle <- plotTitle()
     
+    # plot title details
+    null_title <- is.null(ptitle)
+    breaks_title <- str_count(str_wrap(ptitle, 40), "\\\n")
+    
+    leg_height <- ifelse(null_title == TRUE, 50, 90 + ((breaks_title + 1) * 20))
     legend_plot <- plot_legend(poem_words, ptitle)
     total_height <- plotHeight()
-    leg_prop <- 100 / total_height
-    main_prop <- (total_height - 100) / total_height
+    leg_prop <- leg_height / total_height
+    main_prop <- (total_height - leg_height) / total_height
     
     g <- grid.arrange(legend_plot, g, nrow = 2, heights = c(leg_prop, main_prop))
 
@@ -493,9 +457,6 @@ server <- function(input, output, session) {
     }
   }, height = reactive({if(is.null(plotHeight()) == FALSE) {plotHeight()} else {0} }))
   
-  # output$plot.ui <- renderUI({
-  #   plotOutput(poem_plot(), height = plotHeight())
-  # })
   
   observe({
     cat(input$GetScreenWidth)
