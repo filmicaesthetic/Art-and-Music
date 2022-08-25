@@ -230,7 +230,7 @@ plot_lines <- function(poem_words) {
   
 }
 
-plot_stream <- function(poem_byline, poem_words) {
+plot_stream <- function(poem_byline, poem_words, poem_long) {
   
   # identify highest scoring emotions
   emotion_sum <- poem_words %>% 
@@ -260,8 +260,8 @@ plot_stream <- function(poem_byline, poem_words) {
   
   #prepare line data for streamgraph
   
-  poem_line <- data.frame(line_id = rep(seq(1:max(poem_byline$line_id)), 3),
-                          emotion = rep(c(as.character(emo_1), as.character(emo_2), as.character(emo_3)), each = max(poem_byline$line_id)))
+  poem_line <- data.frame(line_id = rep(seq(1:max(poem_long$line_id)), 3),
+                          emotion = rep(c(as.character(emo_1), as.character(emo_2), as.character(emo_3)), each = max(poem_long$line_id)))
   
   poem_line <- poem_line %>% 
     left_join(poem_byline, by = c("line_id", "emotion")) %>% 
@@ -450,7 +450,7 @@ server <- function(input, output, session) {
     poem_long <- poem_long(poem_split)
     poem_words <- poem_words(poem_long)
     poem_byline <- poem_byline(poem_long)
-    stream <- plot_stream(poem_byline, poem_words)
+    stream <- plot_stream(poem_byline, poem_words, poem_long)
     lines <- plot_lines(poem_words)
     
     g <- plot_combine(lines, stream)

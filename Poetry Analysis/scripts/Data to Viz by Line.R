@@ -208,10 +208,13 @@ lines <- poem_words %>%
 
 #prepare line data for streamgraph
 
-poem_line <- data.frame(line_id = rep(seq(1:max(poem_byline$line_id)), 3),
-                        emotion = rep(c(as.character(emo_1), as.character(emo_2), as.character(emo_3)), each = max(poem_byline$line_id)))
+poem_line <- data.frame(line_id = rep(seq(1:max(poem_long$line_id)), 3),
+                        emotion = rep(c(as.character(emo_1), as.character(emo_2), as.character(emo_3)), each = max(poem_long$line_id)))
 
-poem_line <- poem_line %>% left_join(poem_byline, by = c("line_id", "emotion")) %>% group_by(line_id, emotion) %>% summarise(value = sum(test))
+poem_line <- poem_line %>% 
+  left_join(poem_byline, by = c("line_id", "emotion")) %>% 
+  group_by(line_id, emotion) %>% 
+  summarise(value = sum(test))
 
 poem_line[is.na(poem_line)] <- 0
 
